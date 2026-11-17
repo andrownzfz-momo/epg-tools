@@ -57,24 +57,6 @@
       "filterable": 0
     },
     {
-      "key": "hn",
-      "name": "红牛",
-      "type": 1,
-      "api": "https://www.hongniuzy2.com/api.php/provide/vod",
-      "searchable": 1,
-      "quickSearch": 1,
-      "filterable": 0
-    },
-    {
-      "key": "lzb",
-      "name": "量子备",
-      "type": 1,
-      "api": "https://cj.lzcaiji.com/api.php/provide/vod",
-      "searchable": 1,
-      "quickSearch": 1,
-      "filterable": 0
-    },
-    {
       "key": "b360",
       "name": "360备",
       "type": 1,
@@ -84,5 +66,6 @@
       "filterable": 0
     }
   ],
-  "wallpaper": "https://epg.773211.xyz/"
+  "wallpaper": "https://epg.773211.xyz/",
+  "notice": "TVBox 自建源套件（点播聚合+直播+EPG） 维护: andyhang1980 联系邮箱: 3630452982@qq.com"
 }

@@ -82,6 +82,7 @@ def main():
         "spider": "https://epg.773211.xyz/box/custom_spider.jar",
         "sites": sites,
         "wallpaper": "https://epg.773211.xyz/",
+  "notice": "TVBox 自建源套件（点播聚合+直播+EPG） 维护: andyhang1980 联系邮箱: 3630452982@qq.com",
     }
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "w", encoding="utf-8") as f:
