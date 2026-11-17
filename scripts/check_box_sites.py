@@ -21,7 +21,7 @@ TIMEOUT = 12
 # drpy 聚合站恒在（api/ext 自托管于 docs/box/）
 DRPY_SITE = {
     "key": "juhe",
-    "name": "聚合影视",
+    "name": "阿福影视",
     "type": 3,
     "api": "https://epg.773211.xyz/box/drpy.min.js",
     "ext": "https://epg.773211.xyz/box/agg.js",
@@ -82,7 +82,8 @@ def main():
         "spider": "https://epg.773211.xyz/box/custom_spider.jar",
         "sites": sites,
         "wallpaper": "https://epg.773211.xyz/",
-  "notice": "TVBox 自建源套件（点播聚合+直播+EPG） 维护: andyhang1980 联系邮箱: 3630452982@qq.com",
+        "logo": "https://epg.773211.xyz/box/logo.png",
+  "notice": "阿福影视（自建源套件：点播聚合 + 直播 + EPG）\n维护: andyhang1980\n联系邮箱: 3630452982@qq.com",
     }
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "w", encoding="utf-8") as f:
