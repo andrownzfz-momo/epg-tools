@@ -37,6 +37,10 @@ jobs:
         continue-on-error: true
         run: python scripts/merge_live.py
 
+      - name: Check box sites
+        continue-on-error: true
+        run: python scripts/check_box_sites.py
+
       - name: Commit and push
         run: |
           git config user.name "epg-bot"
