@@ -10,9 +10,12 @@
  */
 
 var SITE = "https://epg.773211.xyz";
+// /box* 分支的回源地址：必须绕开本 Worker 自己的路由（同域名 /box* 会循环）
+var BOX_ORIGIN = "https://andyhang1980.github.io/epg-tools";
 
 var INDEX_CACHE_TTL = 3600;      // 频道索引缓存 1h
 var NO_DATA_CACHE_TTL = 300;     // 空结果缓存 5min
+var BOX_CACHE_TTL = 3600;        // /box* 点播文件边缘缓存 1h（CI 每天4次更新）
 
 function jsonResp(obj, status, ttl) {
     return new Response(JSON.stringify(obj), {
@@ -79,6 +82,25 @@ function emptyDay(ch, d) {
     return { channel_name: ch, date: d.full, epg_data: [] };
 }
 
+// /box* 点播文件透传：jar/引擎/依赖/配置走 1h 边缘缓存，消除回源延迟
+async function handleBox(req, ctx) {
+    var url = new URL(req.url);
+    var originUrl = BOX_ORIGIN + url.pathname + url.search;
+    var r = await fetch(originUrl, { cf: { cacheTtl: BOX_CACHE_TTL, cacheEverything: true } });
+    var headers = {
+        "cache-control": "public, max-age=" + BOX_CACHE_TTL,
+        "access-control-allow-origin": "*",
+    };
+    if (r.ok) {
+        headers["content-type"] = r.headers.get("content-type") || "application/octet-stream";
+        return new Response(await r.arrayBuffer(), { status: 200, headers: headers });
+    }
+    return new Response(JSON.stringify({ error: "box origin " + r.status }), {
+        status: r.status === 404 ? 404 : 502,
+        headers: { "content-type": "application/json; charset=utf-8", "cache-control": "public, max-age=60" },
+    });
+}
+
 async function handle(req, ctx) {
     var url = new URL(req.url);
     var ch = url.searchParams.get("ch") || url.searchParams.get("name") || "";
@@ -108,10 +130,19 @@ addEventListener("fetch", function (event) {
     event.respondWith((function () {
         var req = event.request;
         var url = new URL(req.url);
+        var cache = caches.default;
+        if (url.pathname.startsWith("/box/")) {
+            return cache.match(req).then(function (hit) {
+                if (hit) return hit;
+                return handleBox(req, event).then(function (res) {
+                    if (res.status === 200) event.waitUntil(cache.put(req, res.clone()));
+                    return res;
+                });
+            });
+        }
         if (url.pathname !== "/json") {
             return jsonResp({ error: "not found" }, 404, 60);
         }
-        var cache = caches.default;
         return cache.match(req).then(function (hit) {
             if (hit) return hit;
             return handle(req, event).then(function (res) {
