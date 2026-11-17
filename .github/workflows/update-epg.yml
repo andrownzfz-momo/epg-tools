@@ -33,6 +33,10 @@ jobs:
         continue-on-error: true
         run: python scripts/fetch_logos.py
 
+      - name: Merge live sources
+        continue-on-error: true
+        run: python scripts/merge_live.py
+
       - name: Commit and push
         run: |
           git config user.name "epg-bot"

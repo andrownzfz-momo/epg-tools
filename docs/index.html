@@ -62,6 +62,18 @@
       <div class="mut">规则：<code id="u-logo"></code>（频道名需与字典一致）</div>
     </div>
     <div class="card">
+      <h2>合并直播源（流媒体 + 网页台）</h2>
+      <div class="row"><span class="mut">合并台单</span><code id="u-all">https://epg.773211.xyz/live/all.txt</code>
+        <button class="btn ghost" data-copy="u-all">复制</button></div>
+      <div class="mut">定时抓取流媒体源并与网页台单合并去重，一条地址两种频道通吃（需 WebView 直播容器支持网页频道）。</div>
+    </div>
+    <div class="card">
+      <h2>网页直播源（WebView 台单）</h2>
+      <div class="row"><span class="mut">wtv 网页台</span><code id="u-wtv">https://epg.773211.xyz/live/wtv.txt</code>
+        <button class="btn ghost" data-copy="u-wtv">复制</button></div>
+      <div class="mut">官方网页台清单（央视/卫视/广东/地方/动漫/直播平台），需支持网页直播的客户端（WebView 容器）。</div>
+    </div>
+    <div class="card">
       <h2>单频道 JSON 接口（Cloudflare Worker）</h2>
       <div class="row"><span class="mut">DIYP 模板</span><code id="u-json">https://epg.773211.xyz/json</code>
         <button class="btn ghost" data-copy="u-json">复制</button></div>

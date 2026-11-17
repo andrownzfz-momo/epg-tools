@@ -1,0 +1,18 @@
+# 官方网页台直播源（WebView 直播容器专用）
+# 来源：maitel2020/wtv channels.json 转换，# 分隔同频道多线路
+# 用法：TVBox 设置 -> 直播地址 填 https://epg.773211.xyz/live/wtv.txt
+央视频道,#genre#
+CCTV1,https://tv.cctv.com/live/cctv1/#https://www.yangshipin.cn/tv/home?pid=600001859
+卫视频道,#genre#
+北京卫视,https://www.yangshipin.cn/tv/home?pid=600002309
+广东频道,#genre#
+广东卫视,https://www.gdtv.cn/tvChannelDetail/43
+地方频道,#genre#
+深圳都市频道,https://www.sztv.com.cn/dianshi.shtml?id=7868
+动漫剧场,#genre#
+小猪佩奇 第一季,https://www.bilibili.com/bangumi/play/ss37587#https://www.bilibili.com/bangumi/play/ep375714#https://www.bilibili.com/bangumi/play/ep375715
+狐狐动画城,https://live.bilibili.com/30837590?live_from=84001
+其他直播,#genre#
+哔哩哔哩直播首页,https://live.bilibili.com/
+抖音直播首页,https://live.douyin.com/
+虎牙直播首页,https://www.huya.com/
