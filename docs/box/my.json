@@ -1,0 +1,16 @@
+{
+  "spider": "https://epg.773211.xyz/box/custom_spider.jar",
+  "sites": [
+    {
+      "key": "juhe",
+      "name": "聚合影视",
+      "type": 3,
+      "api": "https://epg.773211.xyz/box/drpy.min.js",
+      "ext": "https://epg.773211.xyz/box/agg.js",
+      "searchable": 2,
+      "quickSearch": 1,
+      "filterable": 0
+    }
+  ],
+  "wallpaper": "https://epg.773211.xyz/"
+}
