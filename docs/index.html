@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IPTV 工具站 · epg.773211.xyz</title>
+<style>
+  :root { --bg:#0f1115; --card:#181b22; --line:#262b36; --fg:#e6e8ee; --mut:#8b93a7; --acc:#4f8cff; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font:14px/1.6 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif; }
+  header { padding:20px 24px; border-bottom:1px solid var(--line); }
+  header h1 { margin:0; font-size:18px; }
+  header p { margin:4px 0 0; color:var(--mut); font-size:12px; }
+  nav { display:flex; gap:4px; padding:0 24px; border-bottom:1px solid var(--line); }
+  nav button { background:none; border:0; color:var(--mut); padding:12px 14px; cursor:pointer;
+               font-size:14px; border-bottom:2px solid transparent; }
+  nav button.on { color:var(--fg); border-bottom-color:var(--acc); }
+  main { padding:20px 24px; max-width:1100px; }
+  section { display:none; }
+  section.on { display:block; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px; }
+  .card h2 { margin:0 0 10px; font-size:15px; }
+  .row { display:flex; gap:8px; align-items:center; margin:6px 0; flex-wrap:wrap; }
+  code { background:#0b0d11; border:1px solid var(--line); border-radius:6px; padding:2px 6px;
+         font:12px/1.5 Consolas,Monaco,monospace; word-break:break-all; }
+  input, select, textarea { background:#0b0d11; color:var(--fg); border:1px solid var(--line);
+        border-radius:8px; padding:8px 10px; font:13px/1.5 inherit; }
+  textarea { width:100%; min-height:200px; resize:vertical; font:12px/1.5 Consolas,Monaco,monospace; }
+  button.btn { background:var(--acc); color:#fff; border:0; border-radius:8px; padding:8px 16px; cursor:pointer; font-size:13px; }
+  button.btn.ghost { background:#232833; color:var(--fg); }
+  .mut { color:var(--mut); font-size:12px; }
+  .stat { color:var(--mut); font-size:12px; margin-top:8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>IPTV 工具站</h1>
+  <p>零服务器 · GitHub Actions 定时聚合公开 EPG 源 · 静态托管 + Cloudflare CDN</p>
+</header>
+
+<nav>
+  <button data-tab="epg" class="on">EPG 接口</button>
+  <button data-tab="conv">直播源格式转换</button>
+  <button data-tab="about">关于</button>
+</nav>
+
+<main>
+  <!-- ============ EPG ============ -->
+  <section id="tab-epg" class="on">
+    <div class="card">
+      <h2>节目单（XMLTV）</h2>
+      <div class="row"><span class="mut">全量（gzip）</span><code id="u-gz"></code>
+        <button class="btn ghost" data-copy="u-gz">复制</button></div>
+      <div class="row"><span class="mut">全量（XML）</span><code id="u-xml"></code>
+        <button class="btn ghost" data-copy="u-xml">复制</button></div>
+      <div class="row"><span class="mut">频道字典</span><code id="u-ch"></code>
+        <button class="btn ghost" data-copy="u-ch">复制</button></div>
+    </div>
+    <div class="card">
+      <h2>台标</h2>
+      <div class="mut">规则：<code id="u-logo"></code>（频道名需与字典一致）</div>
+    </div>
+    <div class="card">
+      <h2>用法</h2>
+      <div class="mut">
+        DIYP / TiviMate / 超级直播等软件，EPG 地址填上面的 gzip 或 XML 地址即可。<br>
+        静态托管无法提供动态 <code>?ch=&amp;date=</code> JSON 接口；需要的话用 Cloudflare Worker 包一层过滤。
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 转换 ============ -->
+  <section id="tab-conv">
+    <div class="card">
+      <h2>直播源格式转换</h2>
+      <div class="row">
+        <select id="dir">
+          <option value="2m3u">txt → m3u</option>
+          <option value="2txt">m3u → txt</option>
+        </select>
+        <button class="btn" id="go">转换</button>
+        <button class="btn ghost" id="dl">下载结果</button>
+        <button class="btn ghost" id="clr">清空</button>
+      </div>
+      <textarea id="in" placeholder="粘贴 txt（分组,#genre# …）或 m3u（#EXTM3U …）"></textarea>
+      <div class="stat" id="stat">纯前端转换，数据不上传。</div>
+      <textarea id="out" readonly placeholder="转换结果"></textarea>
+    </div>
+  </section>
+
+  <!-- ============ 关于 ============ -->
+  <section id="tab-about">
+    <div class="card">
+      <h2>关于</h2>
+      <div class="mut">
+        本站只做了两件事：<br>
+        1. 定时把公开 EPG 源聚合成一份静态 XMLTV（GitHub Actions，非本站实时抓取）；<br>
+        2. 纯前端做直播源格式转换，你的源不会离开浏览器。<br><br>
+        频道名经过 繁→简 / 去修饰词 / 字典匹配 三级标准化，再按省市区分组。
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+"use strict";
+
+/* ---------- 站点配置 ---------- */
+var SITE = "https://epg.773211.xyz";
+
+/* ---------- 繁→简（常用字，best-effort） ---------- */
+var HANT = {
+  "臺":"台","視":"视","訊":"讯","鳳":"凤","衛":"卫","亞":"亚","東":"东","緯":"纬","劇":"剧",
+  "體":"体","電":"电","綜":"综","節":"节","頻":"频","藍":"蓝","標":"标","瑩":"莹","碼":"码",
+  "無":"无","線":"线","寬":"宽","閱":"阅","讀":"读","員":"员","隊":"队","學":"学","園":"园",
+  "區":"区","縣":"县","鄉":"乡","鎮":"镇","國":"国","際":"际","華":"华","產":"产","黨":"党",
+  "軍":"军","檢":"检","驗":"验","測":"测","術":"术","場":"场","館":"馆","圖":"图","書":"书",
+  "報":"报","誌":"志","廣":"广","播":"播","灣":"湾","獨":"独","媒":"媒","網":"网","絡":"络",
+  "科":"科","技":"技","資":"资","數":"数","遊":"游","戲":"戏","軟":"软","樂":"乐","豐":"丰",
+  "車":"车","競":"竞","運":"运","動":"动","醫":"医","療":"疗","藥":"药","養":"养","飲":"饮",
+  "食":"食","廳":"厅","廚":"厨","師":"师","飯":"饭","麵":"面","條":"条","餃":"饺","湯":"汤",
+  "圓":"圆","點":"点","餅":"饼","乾":"干","果":"果","蜜":"蜜","糖":"糖","蘋":"苹","櫻":"樱",
+  "蘿":"萝","絲":"丝","審":"审","憲":"宪","憲":"宪","秘":"秘","書":"书","長":"长","爾":"尔",
+  "薩":"萨","韓":"韩","國":"国","語":"语","字":"字","幕":"幕","配":"配","樂":"乐","聲":"声",
+  "頭":"头","髮":"发","飾":"饰","裝":"装","飾":"饰","錦":"锦","繡":"绣","緞":"缎","紡":"纺",
+  "織":"织","縫":"缝","紉":"纫","帳":"帐","簾":"帘","櫃":"柜","桌":"桌","椅":"椅","燈":"灯",
+  "鏡":"镜","鐘":"钟","錶":"表","錢":"钱","幣":"币","銀":"银","行":"行","證":"证","券":"券",
+  "險":"险","匯":"汇","貸":"贷","費":"费","稅":"税","務":"务","關":"关","稅":"税","價":"价",
+  "銷":"销","售":"售","購":"购","買":"买","賣":"卖","攤":"摊","販":"贩","超":"超","市":"市",
+  "雜":"杂","貨":"货"
+};
+
+function t2s(s) {
+  return String(s || "").replace(/[\u4e00-\u9fff]/g, function (c) { return HANT[c] || c; });
+}
+
+/* ---------- 频道名标准化（与 scripts/build_epg.py 一致） ---------- */
+var REGION_RE = /北京|上海|NEWTV|IHOT|河北|山西|辽宁|吉林|黑龙江|江苏|浙江|安徽|福建|江西|山东|河南|湖北|湖南|广东|海南|四川|贵州|云南|陕西|甘肃|青海|台湾|香港|重庆/;
+var GROUP_RULES = [
+  ["央视", ["CCTV", "央视", "中央", "CGTN"]],
+  ["卫视", ["卫视"]],
+  ["北京", ["BTV", "北京"]],
+  ["港澳台", ["翡翠","明珠","民视","台视","华视","TVB","纬来","年代","原住民","中视","澳亚",
+              "东森","好消息电视台","大爱","博斯","ELEVEN","FOX","ASTRO","HBO","NIPPON",
+              "NHK","GSTV","无线","凤凰"]]
+];
+
+function sanitize(name) {
+  var n = t2s(name).trim().toUpperCase();
+  n = n.replace(/\[[^\]]*\]/g, "");
+  n = n.replace(/\b(8M|1080P|60FPS|FHD|HEVC|HDR|SD)\b/g, "");
+  n = n.replace(/(超清|高清|蓝光|标清|频道)$/g, "");
+  n = n.replace(/[-\s]+/g, "");
+  n = n.replace(/CCTV[-\s]*([0-9]{1,2}[+]?)[48]?K?/gi, "CCTV$1");
+  n = n.replace(/BTV/g, "北京");
+  return n.trim();
+}
+
+function lcs(a, b) {
+  if (!a || !b) return 0;
+  var prev = new Array(b.length + 1).fill(0), best = 0;
+  for (var i = 1; i <= a.length; i++) {
+    var cur = new Array(b.length + 1).fill(0);
+    for (var j = 1; j <= b.length; j++) {
+      if (a[i - 1] === b[j - 1]) { cur[j] = prev[j - 1] + 1; if (cur[j] > best) best = cur[j]; }
+    }
+    prev = cur;
+  }
+  return best;
+}
+
+var DICT = [];
+var DICT_UP = [];
+
+function matchTvg(name) {
+  var n = sanitize(name);
+  if (!n) return "未知频道";
+  var i, d;
+  for (i = 0; i < DICT_UP.length; i++) if (n === DICT_UP[i]) return DICT[i];
+  for (i = 0; i < DICT.length; i++) { d = DICT[i]; if (n.indexOf(d) === 0 && /^[\u4e00-\u9fff]/.test(d)) return d; }
+  for (i = 0; i < DICT_UP.length; i++) if (n.indexOf(DICT_UP[i]) === 0) return DICT[i];
+  var best = null, bl = 0;
+  for (i = 0; i < DICT_UP.length; i++) { var l = lcs(n, DICT_UP[i]); if (l > bl) { bl = l; best = DICT[i]; } }
+  return (best && bl >= 2) ? best : "未知频道";
+}
+
+function groupOf(name) {
+  var n = sanitize(name), m = n.match(REGION_RE);
+  if (m) return m[0];
+  for (var i = 0; i < GROUP_RULES.length; i++) {
+    for (var j = 0; j < GROUP_RULES[i][1].length; j++) {
+      if (n.indexOf(GROUP_RULES[i][1][j]) >= 0) return GROUP_RULES[i][0];
+    }
+  }
+  return "其他";
+}
+
+/* ---------- txt <-> m3u ---------- */
+function txtToM3u(text) {
+  var lines = String(text).split(/\r?\n/);
+  var out = ["#EXTM3U"], group = "其他", n = 0;
+  for (var i = 0; i < lines.length; i++) {
+    var ln = lines[i].trim();
+    if (!ln) continue;
+    if (ln.indexOf("#genre#") >= 0) {
+      group = ln.split(",")[0].replace(/#genre#/g, "").trim() || "其他";
+      continue;
+    }
+    if (ln.charAt(0) === "#") continue;
+    var parts = ln.split(",");
+    if (parts.length < 2) continue;
+    var name = parts[0].trim(), url = parts.slice(1).join(",").trim();
+    if (!/^https?:\/\//i.test(url) && !/^[a-z0-9]+:\/\//i.test(url)) continue;
+    var std = matchTvg(name);
+    var g = groupOf(name) === "其他" ? group : groupOf(name);
+    out.push('#EXTINF:-1 tvg-id="' + std + '" tvg-name="' + std +
+             '" tvg-logo="' + SITE + "/logo/" + encodeURIComponent(std) + '.png"' +
+             ' group-title="' + g + '"', url);
+    n++;
+  }
+  return { text: out.join("\n"), n: n };
+}
+
+function m3uToTxt(text) {
+  var lines = String(text).split(/\r?\n/), out = [], group = null, n = 0;
+  for (var i = 0; i < lines.length; i++) {
+    var ln = lines[i].trim();
+    if (ln.indexOf("#EXTINF") === 0) {
+      var m = ln.match(/group-title="([^"]*)"/);
+      group = m ? m[1] : "其他";
+      var name = ln.replace(/^#EXTINF:-?\d*,/, "").split(",").pop().trim();
+      var url = (lines[i + 1] || "").trim();
+      if (!url) continue;
+      i++;
+      if (out.length === 0 || out[out.length - 1].genre !== group) {
+        out.push({ genre: group, lines: [] });
+      }
+      out[out.length - 1].lines.push(name + "," + url);
+      n++;
+    }
+  }
+  var res = [];
+  for (var j = 0; j < out.length; j++) {
+    res.push(out[j].genre + ",#genre#");
+    res = res.concat(out[j].lines);
+  }
+  return { text: res.join("\n"), n: n };
+}
+
+/* ---------- UI ---------- */
+var $ = function (id) { return document.getElementById(id); };
+
+document.querySelectorAll("nav button").forEach(function (b) {
+  b.onclick = function () {
+    document.querySelectorAll("nav button").forEach(function (x) { x.classList.remove("on"); });
+    document.querySelectorAll("main section").forEach(function (x) { x.classList.remove("on"); });
+    b.classList.add("on");
+    $("tab-" + b.dataset.tab).classList.add("on");
+  };
+});
+
+$("u-gz").textContent = SITE + "/epg.xml.gz";
+$("u-xml").textContent = SITE + "/epg.xml";
+$("u-ch").textContent = SITE + "/channels.json";
+$("u-logo").textContent = SITE + "/logo/<频道名>.png";
+
+document.querySelectorAll("[data-copy]").forEach(function (b) {
+  b.onclick = function () {
+    var t = $(b.dataset.copy).textContent;
+    (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).catch(function () {});
+    b.textContent = "已复制";
+    setTimeout(function () { b.textContent = "复制"; }, 1200);
+  };
+});
+
+$("go").onclick = function () {
+  var v = $("dir").value, r;
+  if (v === "2m3u") r = txtToM3u($("in").value);
+  else r = m3uToTxt($("in").value);
+  $("out").value = r.text;
+  $("stat").textContent = "转换完成：" + r.n + " 个频道。纯前端，数据不上传。";
+};
+
+$("clr").onclick = function () { $("in").value = ""; $("out").value = ""; $("stat").textContent = "纯前端转换，数据不上传。"; };
+
+$("dl").onclick = function () {
+  var name = $("dir").value === "2m3u" ? "epg.m3u" : "epg.txt";
+  var blob = new Blob([$("out").value], { type: "text/plain;charset=utf-8" });
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+
+/* 载入频道字典（与聚合脚本同一份） */
+fetch(SITE + "/channels.json").then(function (r) { return r.json(); }).then(function (d) {
+  DICT = d;
+  DICT_UP = d.map(function (x) { return x.toUpperCase(); });
+}).catch(function () {
+  DICT = ["CCTV1","CCTV2","CCTV3","CCTV4","CCTV5","CCTV6","CCTV7","CCTV8","CCTV9","CCTV10",
+          "CCTV11","CCTV12","CCTV13","CCTV14","CCTV15","CCTV16","CCTV17","CCTV4K","CGTN",
+          "北京卫视","东方卫视","湖南卫视","浙江卫视","江苏卫视","广东卫视","深圳卫视"];
+  DICT_UP = DICT.map(function (x) { return x.toUpperCase(); });
+});
+</script>
+</body>
+</html>
