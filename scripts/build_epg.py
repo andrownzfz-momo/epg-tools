@@ -192,7 +192,63 @@ def build():
     with open(os.path.join(OUT_DIR, "channels.json"), "w", encoding="utf-8") as f:
         json.dump(dict_names, f, ensure_ascii=False, indent=0)
 
+    # 预构建 DIYP JSON 查表数据（供 Cloudflare Worker /json 接口直接读取）
+    write_epgdata(channels)
+
     print(f"[done] {len(channels)} channels, {total} programmes")
+
+
+_SAFE_KEY_RE = re.compile(r'[<>:"/\\|?*\s]')
+
+
+def _safe_key(std):
+    return _SAFE_KEY_RE.sub("_", std)
+
+
+def write_epgdata(channels):
+    """按频道预生成逐日 DIYP JSON：docs/epgdata/<频道>/<日期>.json + docs/epgdata/index.json。"""
+    base = os.path.join(OUT_DIR, "epgdata")
+    os.makedirs(base, exist_ok=True)
+    index = {}
+    for std in sorted(channels):
+        safe = _safe_key(std)
+        index[std] = safe
+        by_date = {}
+        for src in channels[std]["progs"].values():
+            start, stop, title, desc = src
+            s_digits = re.sub(r"\D", "", start)
+            e_digits = re.sub(r"\D", "", stop)
+            if len(s_digits) < 8 or len(e_digits) < 8:
+                continue
+            date_c = s_digits[:8]
+            entry = {
+                "start": _fmt_dt(s_digits),
+                "end": _fmt_dt(e_digits),
+                "title": title,
+            }
+            if desc:
+                entry["desc"] = desc
+            by_date.setdefault(date_c, []).append(entry)
+        ch_dir = os.path.join(base, safe)
+        for date_c, items in by_date.items():
+            if len(items) > MAX_PROGS_PER_CHANNEL:
+                items = items[:MAX_PROGS_PER_CHANNEL]
+            day_obj = {
+                "channel_name": std,
+                "date": f"{date_c[:4]}-{date_c[4:6]}-{date_c[6:8]}",
+                "epg_data": items,
+            }
+            os.makedirs(ch_dir, exist_ok=True)
+            with open(os.path.join(ch_dir, date_c + ".json"), "w", encoding="utf-8") as f:
+                json.dump(day_obj, f, ensure_ascii=False, separators=(",", ":"))
+    with open(os.path.join(base, "index.json"), "w", encoding="utf-8") as f:
+        json.dump(index, f, ensure_ascii=False, separators=(",", ":"))
+    print(f"[epgdata] {len(index)} channels -> epgdata/")
+
+
+def _fmt_dt(digits):
+    d = (digits + "00000000000000")[:14]
+    return f"{d[0:4]}-{d[4:6]}-{d[6:8]} {d[8:10]}:{d[10:12]}:{d[12:14]}"
 
 
 def _indent(elem, xml_bytes):

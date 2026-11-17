@@ -62,10 +62,16 @@
       <div class="mut">规则：<code id="u-logo"></code>（频道名需与字典一致）</div>
     </div>
     <div class="card">
+      <h2>单频道 JSON 接口（Cloudflare Worker）</h2>
+      <div class="row"><span class="mut">DIYP 模板</span><code id="u-json">https://epg.773211.xyz/json</code>
+        <button class="btn ghost" data-copy="u-json">复制</button></div>
+      <div class="mut">软件端填模板或裸地址均可：<code>?ch=频道名&amp;date=YYYY-MM-DD</code>；返回 <code>{"channel_name", "date", "epg_data":[{start,end,title}]}</code>。按频道查预生成表，秒回。</div>
+    </div>
+    <div class="card">
       <h2>用法</h2>
       <div class="mut">
-        DIYP / TiviMate / 超级直播等软件，EPG 地址填上面的 gzip 或 XML 地址即可。<br>
-        静态托管无法提供动态 <code>?ch=&amp;date=</code> JSON 接口；需要的话用 Cloudflare Worker 包一层过滤。
+        TVBox：EPG 地址填 <code>https://epg.773211.xyz/epg.xml</code>（XMLTV 整包）或 <code>https://epg.773211.xyz/json</code>（DIYP 单频道）。<br>
+        DIYP / 超级直播等软件同理；XMLTV 与 JSON 二选一，JSON 按台回传、省流量。
       </div>
     </div>
   </section>
