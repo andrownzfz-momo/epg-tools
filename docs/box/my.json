@@ -39,15 +39,6 @@
       "filterable": 0
     },
     {
-      "key": "z360",
-      "name": "360",
-      "type": 1,
-      "api": "https://360zy.com/api.php/provide/vod",
-      "searchable": 1,
-      "quickSearch": 1,
-      "filterable": 0
-    },
-    {
       "key": "sn",
       "name": "索尼",
       "type": 1,
@@ -57,10 +48,19 @@
       "filterable": 0
     },
     {
-      "key": "b360",
-      "name": "360备",
+      "key": "hn",
+      "name": "红牛",
       "type": 1,
-      "api": "https://360zy5.com/api.php/provide/vod",
+      "api": "https://www.hongniuzy2.com/api.php/provide/vod",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 0
+    },
+    {
+      "key": "lzb",
+      "name": "量子备",
+      "type": 1,
+      "api": "https://cj.lzcaiji.com/api.php/provide/vod",
       "searchable": 1,
       "quickSearch": 1,
       "filterable": 0
