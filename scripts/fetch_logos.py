@@ -18,8 +18,8 @@ DICT_FILE = os.path.join(ROOT, "scripts", "channels.json")
 UA = {"User-Agent": "Mozilla/5.0 (compatible; epg-tools/1.0)"}
 
 DEFAULT_BASES = [
-    "https://raw.githubusercontent.com/fanmingming/live/main/tv/logo/{}.png",
-    "https://raw.githubusercontent.com/wanglindl/TVlogo/master/{}.png",
+    "https://raw.githubusercontent.com/fanmingming/live/main/tv/{}.png",
+    "https://raw.githubusercontent.com/wanglindl/TVlogo/master/img/{}.png",
 ]
 
 

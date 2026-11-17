@@ -27,8 +27,8 @@ UA = {"User-Agent": "Mozilla/5.0 (compatible; epg-tools/1.0)"}
 # 公开 EPG 源（XMLTV）。单个源失效会被跳过，不影响整体。
 SOURCES = [
     "http://epg.51zmt.top:8000/e.xml",
-    "https://raw.githubusercontent.com/fanmingming/live/main/tv/xmltv.xml",
-    "http://epg.112114.xyz/raw/iptv.xml",
+    "https://raw.githubusercontent.com/fanmingming/live/main/e.xml",
+    "https://epg.pw/xmltv.xml",
 ]
 
 # 单个频道最多保留的节目条数（防止某些源输出爆炸）
@@ -145,24 +145,26 @@ def build():
         except Exception as e:  # noqa: BLE001
             print(f"[skip] {url}: {e}", file=sys.stderr)
             continue
-        n_ch = 0
+        id_map = {}
         for ch in root.findall("channel"):
             cid = ch.get("id")
             raw = (ch.findtext("display-name") or cid or "").strip()
-            if not raw:
+            if not raw or not cid:
                 continue
-            std = match_tvg(raw, dict_names)
+            id_map[cid] = match_tvg(raw, dict_names)
+        n_prog = 0
+        for p in root.findall("programme"):
+            std = id_map.get(p.get("channel"))
+            if not std:
+                continue
             entry = channels.setdefault(std, {"display": std, "progs": {}})
-            for p in root.findall("programme"):
-                if p.get("channel") != cid:
-                    continue
-                start = p.get("start") or ""
-                stop = p.get("stop") or ""
-                title = (p.findtext("title") or "").strip()
-                desc = (p.findtext("desc") or "").strip()
-                entry["progs"].setdefault((start, stop, title), (start, stop, title, desc))
-            n_ch += 1
-        print(f"[ok] {url}: {n_ch} channels")
+            start = p.get("start") or ""
+            stop = p.get("stop") or ""
+            title = (p.findtext("title") or "").strip()
+            desc = (p.findtext("desc") or "").strip()
+            entry["progs"].setdefault((start, stop, title), (start, stop, title, desc))
+            n_prog += 1
+        print(f"[ok] {url}: {len(id_map)} channels, {n_prog} programmes")
 
     tv = ET.Element("tv", {"generator-info-name": "epg-tools"})
     total = 0
