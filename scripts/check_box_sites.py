@@ -82,7 +82,7 @@ def main():
         "spider": "https://epg.773211.xyz/box/custom_spider.jar",
         "sites": sites,
         "wallpaper": "https://epg.773211.xyz/",
-        "logo": "https://epg.773211.xyz/box/logo.png",
+        "logo": "https://epg.773211.xyz/box/logo.png?v=2",
   "notice": "阿福影视（自建源套件：点播聚合 + 直播 + EPG）\n维护: andyhang1980\n联系邮箱: 3630452982@qq.com",
     }
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
