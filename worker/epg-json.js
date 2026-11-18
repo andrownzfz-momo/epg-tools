@@ -11,13 +11,13 @@
 
 var SITE = "https://epg.773211.xyz";
 // /box* 分支的回源地址：必须绕开本 Worker 自己的路由（同域名 /box* 会循环）
-var BOX_ORIGIN = "https://andyhang1980.github.io/epg-tools";
+var BOX_ORIGIN = "https://andrownzfz-momo.github.io/epg-tools";
 
 var INDEX_CACHE_TTL = 3600;      // 频道索引缓存 1h
 var NO_DATA_CACHE_TTL = 300;     // 空结果缓存 5min
 var BOX_CACHE_TTL = 3600;        // /box* 点播文件边缘缓存 1h（CI 每天4次更新）
 // 缓存版本盐：改这个数字重新部署即可立刻让所有 /box* 边缘缓存失效
-var BOX_CACHE_VER = 4;
+var BOX_CACHE_VER = 6;
 
 function jsonResp(obj, status, ttl) {
     return new Response(JSON.stringify(obj), {
@@ -87,7 +87,9 @@ function emptyDay(ch, d) {
 // /box* 点播文件透传：jar/引擎/依赖/配置走 1h 边缘缓存，消除回源延迟
 async function handleBox(req, ctx) {
     var url = new URL(req.url);
-    var originUrl = BOX_ORIGIN + url.pathname + url.search;
+    // 回源 URL 附带版本参数：让 fetch 层 cf 缓存也随 BOX_CACHE_VER 一起失效
+    var originUrl = BOX_ORIGIN + url.pathname + url.search
+        + (url.search ? "&" : "?") + "_cb=" + BOX_CACHE_VER;
     var r = await fetch(originUrl, { cf: { cacheTtl: BOX_CACHE_TTL, cacheEverything: true } });
     var headers = {
         "cache-control": "public, max-age=" + BOX_CACHE_TTL,

@@ -83,7 +83,7 @@ def main():
         "sites": sites,
         "wallpaper": "https://epg.773211.xyz/",
         "logo": "https://epg.773211.xyz/box/logo.png?v=4",
-  "notice": "阿福影视（自建源套件：点播聚合 + 直播 + EPG）\n维护: andyhang1980\n联系邮箱: 3630452982@qq.com",
+  "notice": "阿福影视（自建源套件：点播聚合 + 直播 + EPG）\n维护: andrownzfz-momo\n联系邮箱: andrownzfz@gmail.com",
     }
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "w", encoding="utf-8") as f:
