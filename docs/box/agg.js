@@ -1,6 +1,7 @@
 /**
  * 阿福影视 — drpy 多源聚合规则（不依赖 globalThis，全部挂 rule 自身）
  * url 约定：源序号_vod_id
+ * 列表结果用引擎 getItem/setItem 做 15 分钟 KV 缓存，翻页/回退秒开
  */
 try { console.log('AF_JS_START'); } catch (e0) {}
 
@@ -32,17 +33,12 @@ var rule = {
         var pos = (cate === 'ju') ? 1 : (cate === 'zy' ? 2 : (cate === 'dm' ? 3 : 0));
         var rg = (rule && rule.rg) ? rule.rg : [];
         for (var i = 0; i < rg.length; i++) {
-            try {
-                var s = rg[i];
-                var tid = s[2].split(',')[pos];
-                var j = JSON.parse(request(s[1] + '?ac=videolist&t=' + tid + '&pg=' + pg));
-                var lst = (j && j.list) ? j.list : [];
-                for (var k = 0; k < lst.length; k++) {
-                    var x = lst[k];
-                    if (!x || !x.vod_id || !x.vod_name) continue;
-                    d.push({title: x.vod_name, desc: x.vod_remarks || '', img: x.vod_pic || '', url: i + '_' + x.vod_id});
-                }
-            } catch (e) {}
+            var s = rg[i];
+            var tid = s[2].split(',')[pos];
+            var arr = rule.afq(s[1] + '?ac=videolist&t=' + tid + '&pg=' + pg, i + '_' + cate + '_' + pg);
+            for (var k = 0; k < arr.length; k++) {
+                d.push({title: arr[k][1], desc: arr[k][2], img: arr[k][3], url: i + '_' + arr[k][0]});
+            }
         }
         setResult(d);
     `,
@@ -52,33 +48,23 @@ var rule = {
         var pg = (typeof MY_PAGE !== 'undefined' && MY_PAGE) ? MY_PAGE : 1;
         var rg = (rule && rule.rg) ? rule.rg : [];
         for (var i = 0; i < rg.length; i++) {
-            try {
-                var s = rg[i];
-                var j = JSON.parse(request(s[1] + '?ac=videolist&wd=' + encodeURIComponent(kw) + '&pg=' + pg));
-                var lst = (j && j.list) ? j.list : [];
-                for (var k = 0; k < lst.length; k++) {
-                    var x = lst[k];
-                    if (!x || !x.vod_id || !x.vod_name) continue;
-                    d.push({title: x.vod_name, desc: x.vod_remarks || '', img: x.vod_pic || '', url: i + '_' + x.vod_id});
-                }
-            } catch (e) {}
+            var s = rg[i];
+            var arr = rule.afq(s[1] + '?ac=videolist&wd=' + encodeURIComponent(kw) + '&pg=' + pg, i + '_s_' + kw + '_' + pg);
+            for (var k = 0; k < arr.length; k++) {
+                d.push({title: arr[k][1], desc: arr[k][2], img: arr[k][3], url: i + '_' + arr[k][0]});
+            }
         }
         setResult(d);
     `,
     推荐: `js:
         var d = [];
         var rg = (rule && rule.rg) ? rule.rg : [];
-        for (var i = 0; i < rg.length; i++) {
-            try {
-                var s = rg[i];
-                var j = JSON.parse(request(s[1] + '?ac=videolist&pg=1'));
-                var lst = (j && j.list) ? j.list : [];
-                for (var k = 0; k < lst.length && k < 10; k++) {
-                    var x = lst[k];
-                    if (!x || !x.vod_id || !x.vod_name) continue;
-                    d.push({title: x.vod_name, desc: x.vod_remarks || '', img: x.vod_pic || '', url: i + '_' + x.vod_id});
-                }
-            } catch (e) {}
+        for (var i = 0; i < rg.length && i < 2; i++) {
+            var s = rg[i];
+            var arr = rule.afq(s[1] + '?ac=videolist&pg=1', i + '_h_1');
+            for (var k = 0; k < arr.length && k < 10; k++) {
+                d.push({title: arr[k][1], desc: arr[k][2], img: arr[k][3], url: i + '_' + arr[k][0]});
+            }
         }
         setResult(d);
     `,
@@ -88,6 +74,7 @@ var rule = {
         var vid = p.slice(1).join('_');
         var rg = (rule && rule.rg) ? rule.rg : [];
         var s = rg[si] || rg[0];
+        var pg = (typeof MY_PAGE !== 'undefined' && MY_PAGE) ? MY_PAGE : 1;
         var main = null;
         try {
             var j = JSON.parse(request(s[1] + '?ac=detail&ids=' + vid));
@@ -115,14 +102,13 @@ var rule = {
                 if (i === si) continue;
                 try {
                     var so = rg[i];
-                    var j2 = JSON.parse(request(so[1] + '?ac=videolist&wd=' + encodeURIComponent(main.vod_name) + '&pg=1'));
-                    var arr = (j2 && j2.list) ? j2.list : [];
                     var hit = null;
-                    for (var m = 0; m < arr.length; m++) {
-                        if (arr[m].vod_name === main.vod_name) { hit = arr[m]; break; }
+                    var arr2 = rule.afq(so[1] + '?ac=videolist&wd=' + encodeURIComponent(main.vod_name) + '&pg=1', i + '_s_' + main.vod_name + '_1');
+                    for (var m = 0; m < arr2.length; m++) {
+                        if (arr2[m][1] === main.vod_name) { hit = arr2[m]; break; }
                     }
                     if (!hit) continue;
-                    var j3 = JSON.parse(request(so[1] + '?ac=detail&ids=' + hit.vod_id));
+                    var j3 = JSON.parse(request(so[1] + '?ac=detail&ids=' + hit[0]));
                     var it3 = (j3 && j3.list) ? j3.list[0] : null;
                     if (!it3) continue;
                     var e2 = [];
@@ -159,4 +145,30 @@ var rule = {
         }
     `
 };
+
+/* 列表抓取 + 15 分钟 KV 缓存：rule.afq(url, cacheKey) -> [[id,name,remarks,pic], ...]
+   注意：必须挂在 rule 上，引擎 eval 的顶层函数不会泄漏到 js 块作用域 */
+rule.afq = function (u, key) {
+    var now = new Date().getTime();
+    try {
+        var c = getItem('af_' + key, '');
+        if (c) {
+            var o = JSON.parse(c);
+            if (o && (now - o.t) < 900000) return o.v;
+        }
+    } catch (e) {}
+    var out = [];
+    try {
+        var j = JSON.parse(request(u, {timeout: 9000}));
+        var lst = (j && j.list) ? j.list : [];
+        for (var k = 0; k < lst.length; k++) {
+            var x = lst[k];
+            if (!x || !x.vod_id || !x.vod_name) continue;
+            out.push([x.vod_id, x.vod_name, x.vod_remarks || '', x.vod_pic || '']);
+        }
+    } catch (e2) {}
+    try { setItem('af_' + key, JSON.stringify({t: now, v: out})); } catch (e3) {}
+    return out;
+};
+
 try { console.log('AF_JS_DONE title=' + rule.title + ' rg=' + (rule.rg ? rule.rg.length : 0)); } catch (e1) {}
