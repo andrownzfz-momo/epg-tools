@@ -1,13 +1,14 @@
 /**
- * 阿福影视 — drpy 多源聚合规则（不依赖 globalThis，全部挂 rule 自身）
+ * 阿福影视 — drpy 多源聚合规则 v4（不依赖 globalThis，全部挂 rule 自身）
+ * 手机网络直连采集站不通，全部列表请求经 Worker 中转：/p?u=<encoded>
  * url 约定：源序号_vod_id
- * 列表结果用引擎 getItem/setItem 做 KV 缓存；空结果只缓存 60s，避免一次网络抽风导致长时间无数据
+ * 每源独立 13 类 tid 映射（各站分类体系不同）
  */
 try { console.log('AF_JS_START'); } catch (e0) {}
 
 var rule = {
     title: '阿福影视',
-    host: 'https://cj.ffzyapi.com',
+    host: 'https://www.hongniuzy2.com',
     url: '',
     searchUrl: '',
     searchable: 2,
@@ -19,13 +20,12 @@ var rule = {
     double: false,
     play_parse: false,
     lazy: 'js: input = {parse: 0, url: input}',
-    // 每源 13 个分类 tid，顺序与 class_url 一致（暴风站点分类 ID 整体偏移）
+    // 每源: [名称, API, 13类tid(顺序同 class_url, 0=该站无此类)]
     rg: [
-        ['非凡', 'https://cj.ffzyapi.com/api.php/provide/vod', '1,2,3,4,6,7,8,9,10,11,12,20,36'],
-        ['量子', 'https://cj.lziapi.com/api.php/provide/vod', '1,2,3,4,6,7,8,9,10,11,12,20,46'],
-        ['暴风', 'https://bfzyapi.com/api.php/provide/vod', '20,30,45,39,21,22,25,24,23,26,27,28,58'],
-        ['360', 'https://360zy.com/api.php/provide/vod', '1,2,3,4,6,7,8,9,10,11,12,27,46'],
-        ['索尼', 'https://suoniapi.com/api.php/provide/vod', '1,2,3,4,6,7,8,9,10,11,12,20,54']
+        ['红牛', 'https://www.hongniuzy2.com/api.php/provide/vod', '1,12,39,36,5,6,7,8,9,10,11,0,46'],
+        ['量子备', 'https://cj.lzcaiji.com/api.php/provide/vod', '1,2,3,4,6,7,8,9,10,11,12,20,46'],
+        ['360备', 'https://360zy5.com/api.php/provide/vod', '1,13,34,38,6,7,8,9,10,11,12,27,46'],
+        ['暴风', 'https://bfzyapi.com/api.php/provide/vod', '20,30,45,39,21,22,25,24,23,26,27,28,58']
     ],
     一级: `js:
         var d = [];
@@ -38,6 +38,7 @@ var rule = {
         for (var i = 0; i < rg.length; i++) {
             var s = rg[i];
             var tid = s[2].split(',')[pos];
+            if (!tid || tid === '0') continue;
             var arr = rule.afq(s[1] + '?ac=videolist&t=' + tid + '&pg=' + pg, i + '_' + cate + '_' + pg);
             for (var k = 0; k < arr.length; k++) {
                 d.push({title: arr[k][1], desc: arr[k][2], img: arr[k][3], url: i + '_' + arr[k][0]});
@@ -77,30 +78,30 @@ var rule = {
         var vid = p.slice(1).join('_');
         var rg = (rule && rule.rg) ? rule.rg : [];
         var s = rg[si] || rg[0];
-        var pg = (typeof MY_PAGE !== 'undefined' && MY_PAGE) ? MY_PAGE : 1;
         var main = null;
         try {
-            var j = JSON.parse(request(s[1] + '?ac=detail&ids=' + vid));
+            var j = JSON.parse(rule.afp(s[1] + '?ac=detail&ids=' + vid));
             main = (j && j.list) ? j.list[0] : null;
         } catch (e) {}
         var froms = [];
         var urls = [];
-        if (main) {
-            var eps = [];
-            var groups = (main.vod_play_url || '').split('$$$');
+        function epsOf(it) {
+            var e = [];
+            var groups = (it.vod_play_url || '').split('$$$');
             for (var g = 0; g < groups.length; g++) {
                 var items = groups[g].split('#');
                 for (var k = 0; k < items.length; k++) {
                     if (!items[k]) continue;
                     var kv = items[k].split('$');
-                    if (kv.length >= 2 && kv[1]) eps.push(kv[0] + '$' + kv[1]);
+                    if (kv.length >= 2 && kv[1]) e.push(kv[0] + '$' + kv[1]);
                 }
-                if (eps.length) break;
+                if (e.length) break;
             }
-            if (eps.length) {
-                froms.push(s[0]);
-                urls.push(eps.join('#'));
-            }
+            return e;
+        }
+        if (main) {
+            var e1 = epsOf(main);
+            if (e1.length) { froms.push(s[0]); urls.push(e1.join('#')); }
             for (var i = 0; i < rg.length; i++) {
                 if (i === si) continue;
                 try {
@@ -111,25 +112,12 @@ var rule = {
                         if (arr2[m][1] === main.vod_name) { hit = arr2[m]; break; }
                     }
                     if (!hit) continue;
-                    var j3 = JSON.parse(request(so[1] + '?ac=detail&ids=' + hit[0]));
+                    var j3 = JSON.parse(rule.afp(so[1] + '?ac=detail&ids=' + hit[0]));
                     var it3 = (j3 && j3.list) ? j3.list[0] : null;
                     if (!it3) continue;
-                    var e2 = [];
-                    var gs = (it3.vod_play_url || '').split('$$$');
-                    for (var g2 = 0; g2 < gs.length; g2++) {
-                        var its = gs[g2].split('#');
-                        for (var k2 = 0; k2 < its.length; k2++) {
-                            if (!its[k2]) continue;
-                            var kv2 = its[k2].split('$');
-                            if (kv2.length >= 2 && kv2[1]) e2.push(kv2[0] + '$' + kv2[1]);
-                        }
-                        if (e2.length) break;
-                    }
-                    if (e2.length) {
-                        froms.push(so[0]);
-                        urls.push(e2.join('#'));
-                    }
-                } catch (e) {}
+                    var e2 = epsOf(it3);
+                    if (e2.length) { froms.push(so[0]); urls.push(e2.join('#')); }
+                } catch (e2x) {}
             }
         }
         VOD = {
@@ -149,12 +137,16 @@ var rule = {
     `
 };
 
+/* Worker 中转：手机网络直连采集站失败，统一走 /p?u=<encoded> */
+rule.afp = function (u) {
+    return request('https://epg.773211.xyz/p?u=' + encodeURIComponent(u), {timeout: 15000});
+};
+
 /* 列表抓取 + KV 缓存：rule.afq(url, cacheKey) -> [[id,name,remarks,pic], ...]
-   成功结果缓存 15 分钟；空结果仅缓存 60 秒，网络恢复后能自动重试。
-   注意：必须挂在 rule 上，引擎 eval 的顶层函数不会泄漏到 js 块作用域 */
+   成功缓存 15 分钟；空结果仅缓存 60 秒，网络恢复自动重试 */
 rule.afq = function (u, key) {
     var now = new Date().getTime();
-    var ck = 'af3_' + key;
+    var ck = 'af4_' + key;
     try {
         var c = getItem(ck, '');
         if (c) {
@@ -164,7 +156,7 @@ rule.afq = function (u, key) {
     } catch (e) {}
     var out = [];
     try {
-        var j = JSON.parse(request(u, {timeout: 9000}));
+        var j = JSON.parse(rule.afp(u));
         var lst = (j && j.list) ? j.list : [];
         for (var k = 0; k < lst.length; k++) {
             var x = lst[k];
@@ -172,8 +164,8 @@ rule.afq = function (u, key) {
             out.push([x.vod_id, x.vod_name, x.vod_remarks || '', x.vod_pic || '']);
         }
     } catch (e2) {}
+    console.log('AFQ ' + key + ' -> ' + out.length);
     try {
-        // 空结果写入 60s 前的时间戳，等价于只缓存 60 秒
         setItem(ck, JSON.stringify({t: out.length ? now : (now - 840000), v: out}));
     } catch (e3) {}
     return out;
