@@ -1,56 +1,13 @@
 /**
- * 阿福影视 — drpy 多源聚合规则（自有第1份 drpy 规则）
- * 数据源：多个公开苹果CMS JSON API，任一失效自动跳过
- * 一级/搜索聚合去重不合并（同名不同源各自成条目），二级按同名跨源补线路
- * 命名约定：url = 源序号_vod_id（二级据此路由回正确源）
- *
- * 注意：drpy 引擎 eval 加载本文件时只把 `var rule` 重命名为引擎的 rule，
- * 其余顶层 var 不会跨函数可见。故共享变量/函数一律挂 globalThis。
+ * 阿福影视 — drpy 多源聚合规则（不依赖 globalThis，全部挂 rule 自身）
+ * url 约定：源序号_vod_id
  */
-
-globalThis.AF_SOURCES = [
-    {name: '非凡', api: 'https://cj.ffzyapi.com/api.php/provide/vod', cats: {dy: 1, ju: 2, zy: 3, dm: 4}},
-    {name: '量子', api: 'https://cj.lziapi.com/api.php/provide/vod', cats: {dy: 1, ju: 2, zy: 3, dm: 4}},
-    {name: '暴风', api: 'https://bfzyapi.com/api.php/provide/vod', cats: {dy: 20, ju: 30, zy: 45, dm: 39}},
-    {name: '360', api: 'https://360zy.com/api.php/provide/vod', cats: {dy: 1, ju: 2, zy: 3, dm: 4}},
-    {name: '索尼', api: 'https://suoniapi.com/api.php/provide/vod', cats: {dy: 1, ju: 2, zy: 3, dm: 4}}
-];
-
-globalThis.afFetch = function (u) {
-    return JSON.parse(request(u));
-};
-
-globalThis.afPush = function (d, arr, si) {
-    (arr || []).forEach(function (x) {
-        if (!x || !x.vod_id || !x.vod_name) return;
-        d.push({
-            title: x.vod_name,
-            desc: x.vod_remarks || '',
-            img: x.vod_pic || '',
-            url: si + '_' + x.vod_id
-        });
-    });
-};
-
-globalThis.afEps = function (it) {
-    var out = [];
-    var urls = (it.vod_play_url || '').split('$$$');
-    for (var g = 0; g < urls.length; g++) {
-        var eps = urls[g].split('#');
-        for (var k = 0; k < eps.length; k++) {
-            if (!eps[k]) continue;
-            var kv = eps[k].split('$');
-            if (kv.length >= 2 && kv[1]) out.push(kv[0] + '$' + kv[1]);
-        }
-    }
-    return out;
-};
 
 var rule = {
     title: '阿福影视',
     host: 'https://cj.ffzyapi.com',
-    url: '/api.php/provide/vod?ac=videolist&t=fyclass&pg=fypage',
-    searchUrl: '/api.php/provide/vod?ac=videolist&wd=**',
+    url: '',
+    searchUrl: '',
     searchable: 2,
     quickSearch: 1,
     filterable: 0,
@@ -59,54 +16,128 @@ var rule = {
     limit: 6,
     double: false,
     play_parse: false,
-    lazy: `js:
-        input = {parse: 0, url: input, jx: 0}
-    `,
+    lazy: 'js: input = {parse: 0, url: input}',
+    rg: [
+        ['非凡', 'https://cj.ffzyapi.com/api.php/provide/vod', '1,2,3,4'],
+        ['量子', 'https://cj.lziapi.com/api.php/provide/vod', '1,2,3,4'],
+        ['暴风', 'https://bfzyapi.com/api.php/provide/vod', '20,30,45,39'],
+        ['360', 'https://360zy.com/api.php/provide/vod', '1,2,3,4'],
+        ['索尼', 'https://suoniapi.com/api.php/provide/vod', '1,2,3,4']
+    ],
     一级: `js:
         var d = [];
         var cate = (typeof MY_CATE !== 'undefined' && MY_CATE) ? MY_CATE : 'dy';
         var pg = (typeof MY_PAGE !== 'undefined' && MY_PAGE) ? MY_PAGE : 1;
-        AF_SOURCES.forEach(function (s, i) {
+        var pos = (cate === 'ju') ? 1 : (cate === 'zy' ? 2 : (cate === 'dm' ? 3 : 0));
+        var rg = (rule && rule.rg) ? rule.rg : [];
+        for (var i = 0; i < rg.length; i++) {
             try {
-                var j = afFetch(s.api + '?ac=videolist&t=' + s.cats[cate] + '&pg=' + pg);
-                afPush(d, j.list, i);
+                var s = rg[i];
+                var tid = s[2].split(',')[pos];
+                var j = JSON.parse(request(s[1] + '?ac=videolist&t=' + tid + '&pg=' + pg));
+                var lst = (j && j.list) ? j.list : [];
+                for (var k = 0; k < lst.length; k++) {
+                    var x = lst[k];
+                    if (!x || !x.vod_id || !x.vod_name) continue;
+                    d.push({title: x.vod_name, desc: x.vod_remarks || '', img: x.vod_pic || '', url: i + '_' + x.vod_id});
+                }
             } catch (e) {}
-        });
+        }
+        setResult(d);
+    `,
+    搜索: `js:
+        var d = [];
+        var kw = (typeof KEY !== 'undefined') ? KEY : '';
+        var pg = (typeof MY_PAGE !== 'undefined' && MY_PAGE) ? MY_PAGE : 1;
+        var rg = (rule && rule.rg) ? rule.rg : [];
+        for (var i = 0; i < rg.length; i++) {
+            try {
+                var s = rg[i];
+                var j = JSON.parse(request(s[1] + '?ac=videolist&wd=' + encodeURIComponent(kw) + '&pg=' + pg));
+                var lst = (j && j.list) ? j.list : [];
+                for (var k = 0; k < lst.length; k++) {
+                    var x = lst[k];
+                    if (!x || !x.vod_id || !x.vod_name) continue;
+                    d.push({title: x.vod_name, desc: x.vod_remarks || '', img: x.vod_pic || '', url: i + '_' + x.vod_id});
+                }
+            } catch (e) {}
+        }
+        setResult(d);
+    `,
+    推荐: `js:
+        var d = [];
+        var rg = (rule && rule.rg) ? rule.rg : [];
+        for (var i = 0; i < rg.length; i++) {
+            try {
+                var s = rg[i];
+                var j = JSON.parse(request(s[1] + '?ac=videolist&pg=1'));
+                var lst = (j && j.list) ? j.list : [];
+                for (var k = 0; k < lst.length && k < 10; k++) {
+                    var x = lst[k];
+                    if (!x || !x.vod_id || !x.vod_name) continue;
+                    d.push({title: x.vod_name, desc: x.vod_remarks || '', img: x.vod_pic || '', url: i + '_' + x.vod_id});
+                }
+            } catch (e) {}
+        }
         setResult(d);
     `,
     二级: `js:
-        var p = input.split('_');
+        var p = ('' + input).split('_');
         var si = parseInt(p[0], 10);
         var vid = p.slice(1).join('_');
-        var s = AF_SOURCES[si];
-        var tabs = [];
-        var lists = [];
+        var rg = (rule && rule.rg) ? rule.rg : [];
+        var s = rg[si] || rg[0];
         var main = null;
         try {
-            var j = afFetch(s.api + '?ac=detail&ids=' + vid);
-            main = (j.list || [])[0];
+            var j = JSON.parse(request(s[1] + '?ac=detail&ids=' + vid));
+            main = (j && j.list) ? j.list[0] : null;
         } catch (e) {}
+        var froms = [];
+        var urls = [];
         if (main) {
-            tabs.push(s.name);
-            lists.push(afEps(main).join('#'));
-            for (var i = 0; i < AF_SOURCES.length; i++) {
+            var eps = [];
+            var groups = (main.vod_play_url || '').split('$$$');
+            for (var g = 0; g < groups.length; g++) {
+                var items = groups[g].split('#');
+                for (var k = 0; k < items.length; k++) {
+                    if (!items[k]) continue;
+                    var kv = items[k].split('$');
+                    if (kv.length >= 2 && kv[1]) eps.push(kv[0] + '$' + kv[1]);
+                }
+                if (eps.length) break;
+            }
+            if (eps.length) {
+                froms.push(s[0]);
+                urls.push(eps.join('#'));
+            }
+            for (var i = 0; i < rg.length; i++) {
                 if (i === si) continue;
                 try {
-                    var so = AF_SOURCES[i];
-                    var j2 = afFetch(so.api + '?ac=videolist&wd=' + encodeURIComponent(main.vod_name) + '&pg=1');
-                    var arr = j2.list || [];
+                    var so = rg[i];
+                    var j2 = JSON.parse(request(so[1] + '?ac=videolist&wd=' + encodeURIComponent(main.vod_name) + '&pg=1'));
+                    var arr = (j2 && j2.list) ? j2.list : [];
                     var hit = null;
-                    for (var k = 0; k < arr.length; k++) {
-                        if (arr[k].vod_name === main.vod_name) { hit = arr[k]; break; }
+                    for (var m = 0; m < arr.length; m++) {
+                        if (arr[m].vod_name === main.vod_name) { hit = arr[m]; break; }
                     }
                     if (!hit) continue;
-                    var j3 = afFetch(so.api + '?ac=detail&ids=' + hit.vod_id);
-                    var it3 = (j3.list || [])[0];
+                    var j3 = JSON.parse(request(so[1] + '?ac=detail&ids=' + hit.vod_id));
+                    var it3 = (j3 && j3.list) ? j3.list[0] : null;
                     if (!it3) continue;
-                    var eps3 = afEps(it3);
-                    if (eps3.length) {
-                        tabs.push(so.name);
-                        lists.push(eps3.join('#'));
+                    var e2 = [];
+                    var gs = (it3.vod_play_url || '').split('$$$');
+                    for (var g2 = 0; g2 < gs.length; g2++) {
+                        var its = gs[g2].split('#');
+                        for (var k2 = 0; k2 < its.length; k2++) {
+                            if (!its[k2]) continue;
+                            var kv2 = its[k2].split('$');
+                            if (kv2.length >= 2 && kv2[1]) e2.push(kv2[0] + '$' + kv2[1]);
+                        }
+                        if (e2.length) break;
+                    }
+                    if (e2.length) {
+                        froms.push(so[0]);
+                        urls.push(e2.join('#'));
                     }
                 } catch (e) {}
             }
@@ -122,30 +153,8 @@ var rule = {
             vod_director: main ? (main.vod_director || '') : '',
             vod_content: main ? (main.vod_content || '') : '',
             vod_remarks: main ? (main.vod_remarks || '') : '',
-            vod_play_from: tabs.join('$$$'),
-            vod_play_url: lists.join('$$$')
+            vod_play_from: froms.join('$$$'),
+            vod_play_url: urls.join('$$$')
         }
-    `,
-    搜索: `js:
-        var d = [];
-        var kw = (typeof KEY !== 'undefined') ? KEY : '';
-        var pg = (typeof MY_PAGE !== 'undefined' && MY_PAGE) ? MY_PAGE : 1;
-        AF_SOURCES.forEach(function (s, i) {
-            try {
-                var j = afFetch(s.api + '?ac=videolist&wd=' + encodeURIComponent(kw) + '&pg=' + pg);
-                afPush(d, j.list, i);
-            } catch (e) {}
-        });
-        setResult(d);
-    `,
-    推荐: `js:
-        var d = [];
-        AF_SOURCES.forEach(function (s, i) {
-            try {
-                var j = afFetch(s.api + '?ac=videolist&pg=1');
-                afPush(d, (j.list || []).slice(0, 10), i);
-            } catch (e) {}
-        });
-        setResult(d);
     `
 };
