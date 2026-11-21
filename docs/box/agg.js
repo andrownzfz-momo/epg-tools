@@ -2,6 +2,7 @@
  * 阿福影视 — drpy 多源聚合规则（不依赖 globalThis，全部挂 rule 自身）
  * url 约定：源序号_vod_id
  */
+try { console.log('AF_JS_START'); } catch (e0) {}
 
 var rule = {
     title: '阿福影视',
@@ -158,3 +159,4 @@ var rule = {
         }
     `
 };
+try { console.log('AF_JS_DONE title=' + rule.title + ' rg=' + (rule.rg ? rule.rg.length : 0)); } catch (e1) {}
