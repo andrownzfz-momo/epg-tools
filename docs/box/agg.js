@@ -1,7 +1,7 @@
 /**
  * 阿福影视 — drpy 多源聚合规则（不依赖 globalThis，全部挂 rule 自身）
  * url 约定：源序号_vod_id
- * 列表结果用引擎 getItem/setItem 做 15 分钟 KV 缓存，翻页/回退秒开
+ * 列表结果用引擎 getItem/setItem 做 KV 缓存；空结果只缓存 60s，避免一次网络抽风导致长时间无数据
  */
 try { console.log('AF_JS_START'); } catch (e0) {}
 
@@ -13,24 +13,27 @@ var rule = {
     searchable: 2,
     quickSearch: 1,
     filterable: 0,
-    class_name: '电影&剧集&综艺&动漫',
-    class_url: 'dy&ju&zy&dm',
+    class_name: '电影&剧集&综艺&动漫&动作&喜剧&爱情&科幻&恐怖&剧情&战争&纪录&短剧',
+    class_url: 'dy&ju&zy&dm&dz&xj&aq&kh&kb&jq&zz&jl&dj',
     limit: 6,
     double: false,
     play_parse: false,
     lazy: 'js: input = {parse: 0, url: input}',
+    // 每源 13 个分类 tid，顺序与 class_url 一致（暴风站点分类 ID 整体偏移）
     rg: [
-        ['非凡', 'https://cj.ffzyapi.com/api.php/provide/vod', '1,2,3,4'],
-        ['量子', 'https://cj.lziapi.com/api.php/provide/vod', '1,2,3,4'],
-        ['暴风', 'https://bfzyapi.com/api.php/provide/vod', '20,30,45,39'],
-        ['360', 'https://360zy.com/api.php/provide/vod', '1,2,3,4'],
-        ['索尼', 'https://suoniapi.com/api.php/provide/vod', '1,2,3,4']
+        ['非凡', 'https://cj.ffzyapi.com/api.php/provide/vod', '1,2,3,4,6,7,8,9,10,11,12,20,36'],
+        ['量子', 'https://cj.lziapi.com/api.php/provide/vod', '1,2,3,4,6,7,8,9,10,11,12,20,46'],
+        ['暴风', 'https://bfzyapi.com/api.php/provide/vod', '20,30,45,39,21,22,25,24,23,26,27,28,58'],
+        ['360', 'https://360zy.com/api.php/provide/vod', '1,2,3,4,6,7,8,9,10,11,12,27,46'],
+        ['索尼', 'https://suoniapi.com/api.php/provide/vod', '1,2,3,4,6,7,8,9,10,11,12,20,54']
     ],
     一级: `js:
         var d = [];
         var cate = (typeof MY_CATE !== 'undefined' && MY_CATE) ? MY_CATE : 'dy';
         var pg = (typeof MY_PAGE !== 'undefined' && MY_PAGE) ? MY_PAGE : 1;
-        var pos = (cate === 'ju') ? 1 : (cate === 'zy' ? 2 : (cate === 'dm' ? 3 : 0));
+        var keys = 'dy,ju,zy,dm,dz,xj,aq,kh,kb,jq,zz,jl,dj'.split(',');
+        var pos = keys.indexOf(cate);
+        if (pos < 0) pos = 0;
         var rg = (rule && rule.rg) ? rule.rg : [];
         for (var i = 0; i < rg.length; i++) {
             var s = rg[i];
@@ -146,12 +149,14 @@ var rule = {
     `
 };
 
-/* 列表抓取 + 15 分钟 KV 缓存：rule.afq(url, cacheKey) -> [[id,name,remarks,pic], ...]
+/* 列表抓取 + KV 缓存：rule.afq(url, cacheKey) -> [[id,name,remarks,pic], ...]
+   成功结果缓存 15 分钟；空结果仅缓存 60 秒，网络恢复后能自动重试。
    注意：必须挂在 rule 上，引擎 eval 的顶层函数不会泄漏到 js 块作用域 */
 rule.afq = function (u, key) {
     var now = new Date().getTime();
+    var ck = 'af3_' + key;
     try {
-        var c = getItem('af_' + key, '');
+        var c = getItem(ck, '');
         if (c) {
             var o = JSON.parse(c);
             if (o && (now - o.t) < 900000) return o.v;
@@ -167,8 +172,11 @@ rule.afq = function (u, key) {
             out.push([x.vod_id, x.vod_name, x.vod_remarks || '', x.vod_pic || '']);
         }
     } catch (e2) {}
-    try { setItem('af_' + key, JSON.stringify({t: now, v: out})); } catch (e3) {}
+    try {
+        // 空结果写入 60s 前的时间戳，等价于只缓存 60 秒
+        setItem(ck, JSON.stringify({t: out.length ? now : (now - 840000), v: out}));
+    } catch (e3) {}
     return out;
 };
 
-try { console.log('AF_JS_DONE title=' + rule.title + ' rg=' + (rule.rg ? rule.rg.length : 0)); } catch (e1) {}
+try { console.log('AF_JS_DONE title=' + rule.title + ' cats=' + rule.class_name.split('&').length + ' rg=' + (rule.rg ? rule.rg.length : 0)); } catch (e1) {}
