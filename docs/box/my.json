@@ -6,7 +6,7 @@
       "name": "阿福影视",
       "type": 3,
       "api": "https://epg.773211.xyz/box/drpy.min.js",
-      "ext": "https://epg.773211.xyz/box/agg.js?v=4",
+      "ext": "https://epg.773211.xyz/box/agg.js?v=5",
       "searchable": 2,
       "quickSearch": 1,
       "filterable": 0
@@ -43,15 +43,6 @@
       "name": "360",
       "type": 1,
       "api": "https://360zy.com/api.php/provide/vod",
-      "searchable": 1,
-      "quickSearch": 1,
-      "filterable": 0
-    },
-    {
-      "key": "sn",
-      "name": "索尼",
-      "type": 1,
-      "api": "https://suoniapi.com/api.php/provide/vod",
       "searchable": 1,
       "quickSearch": 1,
       "filterable": 0
