@@ -102,23 +102,8 @@ var rule = {
         if (main) {
             var e1 = epsOf(main);
             if (e1.length) { froms.push(s[0]); urls.push(e1.join('#')); }
-            for (var i = 0; i < rg.length; i++) {
-                if (i === si) continue;
-                try {
-                    var so = rg[i];
-                    var hit = null;
-                    var arr2 = rule.afq(so[1] + '?ac=videolist&wd=' + encodeURIComponent(main.vod_name) + '&pg=1', i + '_s_' + main.vod_name + '_1');
-                    for (var m = 0; m < arr2.length; m++) {
-                        if (arr2[m][1] === main.vod_name) { hit = arr2[m]; break; }
-                    }
-                    if (!hit) continue;
-                    var j3 = JSON.parse(rule.afp(so[1] + '?ac=detail&ids=' + hit[0]));
-                    var it3 = (j3 && j3.list) ? j3.list[0] : null;
-                    if (!it3) continue;
-                    var e2 = epsOf(it3);
-                    if (e2.length) { froms.push(so[0]); urls.push(e2.join('#')); }
-                } catch (e2x) {}
-            }
+            // v5：不再跨源补线路——同名不同片很常见，混进别人线路会出现显示与播放不一致；
+            // 只保留主源线路，显示与实际完全一致。
         }
         VOD = {
             vod_id: input,
