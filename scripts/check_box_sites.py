@@ -24,7 +24,7 @@ DRPY_SITE = {
     "name": "阿福影视",
     "type": 3,
     "api": "https://epg.773211.xyz/box/drpy.min.js",
-    "ext": "https://epg.773211.xyz/box/agg.js?v=4",
+    "ext": "https://epg.773211.xyz/box/agg.js?v=5",
     "searchable": 2,
     "quickSearch": 1,
     "filterable": 0,
