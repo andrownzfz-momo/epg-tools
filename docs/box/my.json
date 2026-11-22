@@ -48,6 +48,15 @@
       "filterable": 0
     },
     {
+      "key": "sn",
+      "name": "索尼",
+      "type": 1,
+      "api": "https://suoniapi.com/api.php/provide/vod",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 0
+    },
+    {
       "key": "hn",
       "name": "红牛",
       "type": 1,
