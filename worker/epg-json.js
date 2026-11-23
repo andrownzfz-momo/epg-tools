@@ -17,7 +17,7 @@ var INDEX_CACHE_TTL = 3600;      // 频道索引缓存 1h
 var NO_DATA_CACHE_TTL = 300;     // 空结果缓存 5min
 var BOX_CACHE_TTL = 3600;        // /box* 点播文件边缘缓存 1h（CI 每天4次更新）
 // 缓存版本盐：改这个数字重新部署即可立刻让所有 /box* 边缘缓存失效
-var BOX_CACHE_VER = 12;
+var BOX_CACHE_VER = 15;
 
 function jsonResp(obj, status, ttl) {
     return new Response(JSON.stringify(obj), {
@@ -105,6 +105,32 @@ async function handleBox(req, ctx) {
     });
 }
 
+// 采集站 API 中转：手机网络直连采集站失败时，由 Worker 代为回源
+async function handleProxy(req) {
+    var target = new URL(req.url).searchParams.get("u");
+    if (!target || !/^https?:\/\//.test(target)) {
+        return jsonResp({ error: "bad u" }, 400, 60);
+    }
+    try {
+        var pr = await fetch(target, {
+            headers: { "User-Agent": "Mozilla/5.0 (compatible; afproxy/1.0)" },
+            redirect: "follow"
+        });
+        var body = await pr.text();
+        return new Response(body, {
+            status: 200,
+            headers: {
+                "content-type": pr.headers.get("content-type") || "application/json; charset=utf-8",
+                "access-control-allow-origin": "*",
+                "cache-control": "public, max-age=300",
+                "x-origin-status": String(pr.status)
+            }
+        });
+    } catch (e) {
+        return jsonResp({ error: "proxy fail: " + e.message }, 502, 60);
+    }
+}
+
 async function handle(req, ctx) {
     var url = new URL(req.url);
     var ch = url.searchParams.get("ch") || url.searchParams.get("name") || "";
@@ -135,7 +161,8 @@ addEventListener("fetch", function (event) {
         var req = event.request;
         var url = new URL(req.url);
         var cache = caches.default;
-        if (url.pathname.startsWith("/box/")) {
+        // /box* 点播文件 + /live* 直播台单都透传回 Pages（同一套 1h 边缘缓存）
+        if (url.pathname.startsWith("/box/") || url.pathname.startsWith("/live/")) {
             var keyUrl = new URL(req.url);
             keyUrl.searchParams.set("__v", String(BOX_CACHE_VER));
             var cacheKey = new Request(keyUrl.toString(), req);
@@ -146,6 +173,9 @@ addEventListener("fetch", function (event) {
                     return res;
                 });
             });
+        }
+        if (url.pathname === "/p") {
+            return handleProxy(req);
         }
         if (url.pathname !== "/json") {
             return jsonResp({ error: "not found" }, 404, 60);
