@@ -21,9 +21,68 @@ WTV_FILE = os.path.join(OUT_DIR, "wtv.txt")
 UA = {"User-Agent": "Mozilla/5.0 (compatible; epg-tools/1.0)"}
 
 # 远程流媒体直播源。单个源失效会被跳过，不影响整体。
+# 来源：tvbox.shenzjd.com 导航站 ok 源筛出（2026-11-22 检测），去镜像留直连。
 SOURCES = [
+    # --- 综合 IPTV 大合集 ---
     "https://raw.githubusercontent.com/fanmingming/live/main/tv/m3u/index.m3u",
     "https://raw.githubusercontent.com/Guovin/iptv-api/gd/output/result.m3u",
+    "https://raw.githubusercontent.com/Guovin/iptv-api/gd/output/ipv4/result.m3u",
+    "https://raw.githubusercontent.com/Kimentanm/aptv/master/m3u/iptv.m3u",
+    "https://raw.githubusercontent.com/suxuang/myIPTV/main/ipv4.m3u",
+    "https://raw.githubusercontent.com/YanG-1989/m3u/main/Gather.m3u",
+    "https://raw.githubusercontent.com/vinkerq/iptv-api/refs/heads/master/iptv.txt",
+    "https://raw.githubusercontent.com/xJEYDAin/iptv/main/output/all_merged.m3u",
+    "https://raw.githubusercontent.com/yoursmile66/TVBox/main/live.txt",
+    "https://raw.githubusercontent.com/gaotianliuyun/gao/master/list.txt",
+    "https://raw.githubusercontent.com/mlzlzj/TV/main/output/result.m3u",
+    "https://raw.githubusercontent.com/gambiarras/legal-iptv/refs/heads/main/playlist.m3u",
+    "https://raw.githubusercontent.com/develop202/migu_video/refs/heads/main/interface.txt",
+    "https://raw.githubusercontent.com/zhoujck/config/main/ext/live.txt",
+    "https://raw.githubusercontent.com/807080747/zv/refs/heads/main/sese.txt",
+    "https://raw.githubusercontent.com/807080747/zv/refs/heads/main/suale.txt",
+    "https://raw.githubusercontent.com/bang359/dsj/raw/main/dsjcs.txt",
+    "https://raw.githubusercontent.com/Wirili/IPTV/main/live.txt",
+    "https://raw.githubusercontent.com/Supprise0901/TVBox_live/main/live.txt",
+    "https://raw.githubusercontent.com/lubin776/tvbox/refs/heads/main/xuexiji/lib/live.txt",
+    "https://raw.githubusercontent.com/lubin776/tvbox/refs/heads/main/xuexiji/lib/ipv6.m3u",
+    "https://raw.githubusercontent.com/fafa002/yf2025/refs/heads/main/yiyifafa.txt",
+    "https://raw.githubusercontent.com/wujiangliu/live-sources/refs/heads/main/%E5%85%A8%E7%90%83%E7%9B%B4%E6%92%AD.m3u",
+    "https://raw.githubusercontent.com/wujiangliu/live-sources/refs/heads/main/bhmb.m3u",
+    "https://gitee.com/OscarWilde/itv/raw/master/tv.txt",
+    "https://live.fanmingming.cn/tv/m3u/ipv6.m3u",
+    # --- 站点直连台单 ---
+    "http://fmys.top/lib/live.m3u",
+    "http://fmys.top/lib/yidong.m3u",
+    "https://clun.top/lib/iptv.m3u",
+    "http://iptv.ruyitv.cc/m3u/tv.txt",
+    "http://tv123.vvvv.ee/tv.m3u",
+    "https://cdn.qd.je/live.m3u",
+    "https://www.xn--rgv465a.top/live/Daily.txt",
+    "https://live.zbds.top/tv/iptv4.txt",
+    "http://xhztv.top/xhz/live.txt",
+    "https://szyyds.cn/tv/live/x.txt",
+    "https://ztha.top/TVBox/tv/thtv.txt",
+    "https://ztha.top/TVBox/lib/iptv.m3u",
+    "https://ztha.top/TVBox/lib/interface.txt",
+    "https://ztha.top/TVBox/lib/fwc.m3u",
+    "https://epg.pw/test_channels_taiwan.m3u",
+    "http://xtvantsc.xyz/%E6%96%B0%E5%8A%A0%E5%9D%A1.m3u",
+    # --- 平台直播（445569 家族）---
+    "https://iptv.445569.xyz/live.m3u",
+    "https://douyin.445569.xyz/live.m3u",
+    "https://kuaishou.445569.xyz/list.m3u",
+    "https://douyu.445569.xyz/live.m3u",
+    "https://yahu.445569.xyz/live.m3u",
+    "https://kugou.445569.xyz/live.m3u",
+    "https://laifeng.445569.xyz/live.m3u",
+    "https://tiktok.445569.xyz/live.m3u",
+    # --- 一起看 / 轮播 / 体育 ---
+    "https://ztha.top/TVBox/lib/huyayqk.m3u",
+    "https://ztha.top/TVBox/lib/douyuyqk.m3u",
+    "https://ztha.top/TVBox/lib/bililive.m3u",
+    "https://ztha.top/TVBox/lib/yylunbo.m3u",
+    "https://jsnzkpg.de5.net/all.m3u",
+    "https://stymei.pages.dev/live.m3u",
 ]
 
 _GROUP_TITLE_RE = re.compile(r'group-title="([^"]*)"')
@@ -102,15 +161,28 @@ def parse_auto(content, groups, order, url):
         parse_txt(content, groups, order)
 
 
+# 单组频道上限：防止 Undefined/General 这类无名大组把台单撑到 TVBox 卡死。
+GROUP_CAP = 200
+# 少于该数量的碎组直接丢弃（原始导航站里 1000+ 组多数是 1~4 条的噪声）。
+GROUP_MIN = 2
+
+
 def dump(groups, order, path):
     lines = []
+    kept_groups = 0
+    total = 0
     for g in order:
+        items = groups[g]
+        if len(items) < GROUP_MIN:
+            continue
         lines.append(f"{g},#genre#")
-        for name, url in groups[g]:
+        for name, url in items[:GROUP_CAP]:
             lines.append(f"{name},{url}")
+        kept_groups += 1
+        total += min(len(items), GROUP_CAP)
     with open(path, "w", encoding="utf-8", newline="\n") as f:
         f.write("\n".join(lines) + "\n")
-    return sum(len(groups[g]) for g in order)
+    return kept_groups, total
 
 
 def main():
@@ -126,8 +198,8 @@ def main():
     # 网页台单最后追加（WebView 容器播放）
     with open(WTV_FILE, encoding="utf-8") as f:
         parse_txt(f.read(), groups, order)
-    n = dump(groups, order, os.path.join(OUT_DIR, "all.txt"))
-    print(f"[done] {len(order)} groups, {n} channels -> live/all.txt")
+    n_groups, n = dump(groups, order, os.path.join(OUT_DIR, "all.txt"))
+    print(f"[done] {n_groups} groups, {n} channels -> live/all.txt")
 
 
 if __name__ == "__main__":
