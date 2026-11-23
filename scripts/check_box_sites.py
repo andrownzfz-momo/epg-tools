@@ -83,6 +83,13 @@ def main():
         "sites": sites,
         "wallpaper": "https://epg.773211.xyz/",
         "logo": "https://epg.773211.xyz/box/logo.png?v=4",
+        "lives": [
+            {
+                "name": "阿福直播",
+                "type": 0,
+                "url": "https://epg.773211.xyz/live/all.txt",
+            },
+        ],
   "notice": "阿福影视（自建源套件：点播聚合 + 直播 + EPG）\n维护: andrownzfz-momo\n联系邮箱: andrownzfz@gmail.com",
     }
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
